@@ -1,0 +1,53 @@
+1. This file is hw9.txt
+
+2. git checkout -b quote v3.0 - creates a new branch quote off of v3.0
+
+3. We apply our patch, which removes grave accents only from output statements and not
+   documentation by running the following:
+
+   patch -p1 <quote-3.0-patch.txt
+
+5. I then emacs into each of the 6 chanegd files and C-x 4 a to add a changelog for them.
+
+6. I then commit these files to my 'quote' branch using:
+
+   git add .
+   git commit -F ChangeLog
+
+7. Generate a formatted patchfile using:
+
+   git format-patch --stdout -1 > formatted-patch.txt
+
+8. Verfied that my partner's patch file works on a new temporary branch of v3.0.
+
+   git am < newPatch.txt
+
+   Rebuilding to run make check:
+
+   ./bootstrap, ./configure, make, make check
+
+9. Ran make distdir
+   Then, on inspecting the diffutils*/ChangeLog file with the following command:
+
+   nano diffutils-3.0.1-3b1be/ChangeLog
+
+   I can see that the first message on the log is mine. Hence, verified that ChangeLog
+   worked.
+
+10. ssh -X hirday@lnxsrv.seas.ucla.edu (With X forwarding for GUI)
+
+    export PATH=/usr/local/cs/bin:$PATH (to get gitk command)
+
+    cd ~eggert/src/gnu/emacs
+
+    run `gitk` as instructed
+
+    Window pops up on XQuartz
+
+    Scrollling through the list on the top-right window helps me find a merge dated
+    2015-01-24 19:00:41 - a commit by Professor Eggert.
+
+    I then screenshot this view and describe it.
+
+
+Thank you!  

@@ -1,0 +1,40 @@
+Name: Hirday Gupta. UID: 505-008-404
+
+My lab partner was Daksh Idnani (204-911-462).
+
+Followed the setup instruction on Piazza
+(https://piazza.com/class/jc5z73cpj8rtt?cid=388)
+
+ran both of the following commands (without checking if they were installed
+to install potential updates)
+$ sudo apt-get install openssh-server
+$ sudo apt-get install openssh-client
+
+Followed the server-side steps as mentioned in the slides.
+
+Created a user for Daksh on my BeagleBone:
+$ sudo useradd -d /home/daksh -m daksh
+$ sudo passwd daksh
+(set password to 'daksh', solely for ironic purposes)
+
+Allowed Daksh to SSH into my BeagleBone:
+$ cd /home/daksh
+$ sudo mkdir .ssh
+$ sudo chowown -R daksh .ssh
+$ sudo chmod 700 .ssh
+
+Daksh performed equivalent steps on his end to setup his server, creating a
+user 'hirday' on his device.
+
+Followed the client-side steps as outlined in the slides.
+
+Created public and private keys
+$ ssh-keygen (created in ~/.ssh/id_rsa, ~/.ssh/id_rsa.pub)
+
+Copied my public key onto my user on daksh's machine.
+$ ssh-copy-id -i hirday@172.20.10.2
+$ eval "$(ssh-agent -s)" (enable ssh-agent)
+$ ssh-add (add private key to ssh-agent)
+$ ssh hirday@172.20.10.2
+
+Managed to successfully ssh without a password. Victory!

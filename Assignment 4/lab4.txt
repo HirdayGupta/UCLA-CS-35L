@@ -1,0 +1,178 @@
+1. wget the given buggy coreutils tarball into a folder.
+
+2. use tar -xzvf to uncompress the tar ball and then cd into the
+   coreutils-with-bug.
+
+3. Use the './configure, make, make install' instructions to compile and attempt
+   to install the coreutils-with-bug. However, there seems to be a compilation
+   error! The error can be summarised by this line of compiler output:
+   	  " utimens.h:2: error: conflicting types for 'futimens' "
+
+4. Since the error occurred, I tried using the renaming patch from the spec
+   by using 'wget' to download the patch file into the folder with the
+   uncompressed tar ball and using the following patch command
+   	" patch -p0 <coreutils.diff "
+   (Used -p0 because all the file paths in the patchfile assumed the patch
+   command would be run from the root directory of coreutils-with-bug)
+
+5. After applying the patch, I tried the './configure, make, make install'
+   set of commands again, and this time they worked! (Quick side note, I ran
+   configure with --prefix="/u/cs/ugrad/hirday/coreutilsWithBugInstall" to
+   set up a custom install directory for the coreutilsWithBug installation)
+
+6. The renaming patch fixed the earlier compile error because the error was that
+   "futimens" was being redeclared and the patch just renamed futimes to
+   "coreutils_futimens" which made the code compile.
+
+7. Now, with the installation complete, I navigate to the custom directory I
+   installed the coreutils-with-bug in. Now, I ran the following commands
+   (as outlined in the spec):
+       7.1 tmp=$(mktemp -d)
+       7.2 cd $tmp
+       7.3 touch -d '1918-11-11 11:00 GMT' wwi-armistice
+       7.4 touch now
+       7.5 sleep 1
+       7.6 touch now1
+       7.7 TZ=UTC0 ./bin/ls -lt --full-time wwi-armistice now now1
+
+8. The above commands produce the following output (Thus managing to reproduce
+   the bug)
+-rw-r--r-- 1 hirday csugrad 0 1918-11-11 03:00:00.000000000 -0800 wwi-armistice
+-rw-r--r-- 1 hirday csugrad 0 2018-02-12 15:30:21.313652009 -0800 now1
+-rw-r--r-- 1 hirday csugrad 0 2018-02-12 15:30:17.889497881 -0800 now
+   Since this command is supposed to arrange the files in decreasing order of
+   newness, it is evident that the command is facing an error because it seems
+   to think that the file from 1918 is earlier than the rest.
+
+9. Now, time to debug. From the same temp directory, I invoke the GNU Debugger
+   by running gdb ~/CS35L/assign4/coreutils-with-bug/src/ls
+
+10. On a parallel terminal session, I opened up coreutils-with-bug/src/ls.c
+    to examine the ls script and try and figure exactly where I should put my
+    first investigative break point. The print_current_files seemed like a good
+    place to start. So in the gdb interactive I said:
+    	 (gdb)  break print_current_files
+
+    And then, I ran the ls command from the gdb interactive shell like so:
+    	 (gdb) run -lt --full-time wwi-armistice now now1
+
+11. Stepping through a few lines, it became evident that print_current_files
+    was calling the print_long_format function (seemingly because of the -l
+    flag). However, as I stepped through that function, it became clear
+    that the order in which these files were being printed was decided before
+    the print_current_files function was called. So I had to take another
+    approach.
+
+12. Biting the bullet, I decided to go through the main function, trying to find
+    any line that indicated it was performing some sort of a sort on the files.
+    Using emacs, I ran a search in the within the main function for the word 
+    'sort' and I found a call to a function called sort_files()!
+
+13. Now, I start a new gdb session with the same ~/CS35L/assign4/coreutils-with
+    -bug/ls executable and I add a breakpoint at the sort_files() function.
+
+14. I then run the executable from the gdb shell with the same options (-lt,
+    --full-time) and stepping through and printing variables, I see that
+    sort_type is set to sort_time and that time_type is set to time_mtime
+    and that sort_reverse is false, which results in a call to a function called
+    compare_mtime.
+
+15. Now, time to add a breakpoint to the compare_mtime function. Once added,
+    I continue to step through and see that the compare_mtime function calls
+    a function called timespec_cmp from timespec.h! I run list in the gdb shell
+    to examine the contents of this function and see that the function is
+    subtracting the two time values. From the documentation comments above the
+    func, I see that the function intends to return a +ve number if A>B, 0 if
+    A==B and a -ve number if A<B.
+
+16. On printing a.tv_nsec and b.tv_nsec for the 3 files, it is evident that 
+    the wwi-armisitce file has a very large negative value that is causing
+    integer overflow during subtraction! The best way to fix this error is to
+    never do any subtraction at all. Instead of doing the subtraction,
+    I run a direct comparison and return 1, 0 or -1 according to the result.
+
+17. In order to generate the required diff, I create a copy of
+    coreutils-with-bug/lib/timespec.h to coreutils-with-bug/timespec.h.
+    Now, assume all following commands are run from coreutils-with-bug directory
+
+18. I emacs timespec.h and change the timespec_cmp to return the following:
+    
+	return a.tv_sec > b.tv_sec ? 1 : a.tv_sec < b.tv_sec ? -1:
+	a.tv_nsec - b.tv_nsec;
+
+    And then I save the changes using emacs. (See ChangeLog entry for reason
+    for returning the difference between nsec and not 0).
+
+19. Now, time to generate the diff. From the coreutils-with-bug directory I run
+    the following command:
+
+    	diff -u lib/timespec.h timespec.h > lsPatch.diff
+
+20. Now, I use emacs to generate the ChangeLog Entry as instructed by the spec.
+    I emacs timespec.h from the coreutils-with-bug directory and use the
+    `C-x 4 a` command to create a ChangeLog that looked like the following:
+
+    2018-02-12  Hirday Manish Gupta  <hirday@lnxsrv03.seas.ucla.edu>
+
+
+        * timespec.h: (timespec_cmp):
+        Remove integer subtraction from program logic to prevent overflow
+	errors. Replace subtraction with direct comparison. and only if the
+	seconds are equal, then invoke a subtraction of nanoseconds as a
+	tiebreaker (this subtraction is now guaranteed to not overflow as
+	it is a maximum of 8 digits long).
+
+    I then hit C-x C-s on emacs to create file ChangeLog in coreutils-with-bug
+    with the above entry.
+
+21. Now, I copy the contents of ChangeLog followed by lsPatch.diff to a file
+    called lab4.diff (as instructed by the spec). One last change thats needed
+    to make the lab4.diff file accurate, is to change the filepath from
+    just 'timespec.h' to 'lib/timespec.h' - this will allow us to apply
+    the patch from the coreutils-with-bug-directory.
+
+22. Time to test out the patch! I run the following command from the coreutils-
+    with-bug directory:
+    	     patch -p0 <lab4.diff
+
+23. This patch makes the required change. I now recompile the contents of the
+    directory by running the `make` command!
+
+24. After the compilation is complete, when I run the same set of commands that
+    earlier resulted in buggy output is now correct! It now prints out the
+    files in the correct order:
+
+-rw-r--r-- 1 hirday csugrad 0 2018-02-12 17:48:11.201890433 -0800 now1
+-rw-r--r-- 1 hirday csugrad 0 2018-02-12 17:48:08.156752350 -0800 now
+-rw-r--r-- 1 hirday csugrad 0 1918-11-11 03:00:00.000000000 -0800 wwi-armistice
+
+25. Running the given touch and ls commands on the home directory of my
+    SEASnet Linux Server results in an even funnier erroneous output.
+    It seems to think that the wwi-armistice file is actually in the future.
+    Here is the output when I run the commands from the root dir:
+
+-rw-r--r-- 1 hirday csugrad 0 2054-12-17 09:28:16.000000000 -0800 wwi-armistice
+-rw-r--r-- 1 hirday csugrad 0 2018-02-10 23:42:58.232394000 -0800 now1
+-rw-r--r-- 1 hirday csugrad 0 2018-02-10 23:42:54.469045000 -0800 now
+
+   This output is severely erroneous!
+
+26. So SEASNet struggles with ancient times. Now, it is common knowledge that 
+    UNIX systems keep time using the EPOCH (1st Jan 1970 00:00:00). So it is
+    a reasonable assumption that SEASNet might struggle with all files that
+    have an mtime that is before the EPOCH date. To test this out, I run the
+    following touch command:
+        touch -d '1968-11-11 11:00 GMT' old-test
+
+27. On running ls -lt --full-time old-test, this is the incorrect output:
+ -rw-r--r-- 1 hirday csugrad 0 2104-12-18 09:28:16.000000000 -0800 old-test 
+    Hence, SEASnet definitely struggles with all files before the EPOCH.
+
+28. From my TA's slides, I learned that the SEASnet NFS filesystem (where the 
+    home directory is stored)  has 32-bit timestamps and the local file system
+    on a linux server (where all tmp directories are created) has 64-bit
+    timestamps.
+    Since the 32-bit timestamps are unsigned, it can't handle files before the
+    epoch since they have negative mtime values. That is the reason for the
+    difference and explains why the NFS system does not handle this well.
+    

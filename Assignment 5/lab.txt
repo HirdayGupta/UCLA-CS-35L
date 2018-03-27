@@ -1,0 +1,158 @@
+0. export PATH=/usr/local/cs/bin:$PATH
+
+1. First thing I did was try and find out how to read arguments passed into a C
+   script. Arrived at the info that changing the signature of main allows me to
+   handle shell args. Namely, the signature `int main (int argc, char** argv)`
+   allows me to access the number of args (in argc) and the vector/array of
+   actual string args (in argv).
+
+2. Next, I get down to writing the actual program. After checking for 2
+   arguments (argc != 3), and if the two input strings, from and two are of
+   the same length (strlen(from) != strlen(2), and also checking if the FROM
+   string has any duplicate characters, I write the actual loop for the
+   program. [For all the above checks, if they failed I wrote the appropriate
+   error message to stderr and exited with code 1].
+
+==== Points 3, 4 & 5, along with files tr2u.c and tr2b.c, answer Qs 1 and 2 in lab ====
+
+3. The actual loop involves a few basic step.
+   3.1: Read input from stdin
+   3.2: Check if the character just read is present in FROM
+   3.3: if it is, write the transliteration to stdout
+   3.4: if it isnt, write the same char as stdin to stdout
+   3.5: Continue reading from stdin and repeating until you hit EOF.
+
+4. I wrote tr2b.c first, which involved reading from stdin using getchar(), and
+   writing to stdout using putchar(), as described in the spec. After writing
+   all the error checks from (2), I wrote the loop I described in (3), with 3.1
+   implemented using getchar() and 3.3/3.4 implemented using putchar().
+   4.1: Important note: I used an int to store the value of getchar(), to allow
+   	accurate reporting of EOF.
+
+5. I then copied tr2b.c to a new file called tr2u.c (by running `cp tr2b.c tr2u.c`)
+   since most of the code is the same across both files, we just change the input
+   and output methods to unbuffered. Now, for 3.1, I use the read method with nbytes
+   set to 1, and for 3.3/3.4 I use the write method with nbytes set to 1, thus directly
+   executing system calls from my program.
+   5.1: Next, I compiled both by programs by running the following commands:
+   	gcc -std=c11 -g tr2b.c -o tr2b
+	gcc -std=c11 -g tr2u.c -o tr2u
+
+6. Now, after testing both with `echo 'ab\nde-f' | ./tr2b 'a\n-' 'z@m+'`, I start
+   comparing the performance of the programs using time and strace.
+
+7. The spec requires me to test my program against a file with 5000000 bytes.
+   I used the head command to take 5000000 bytes from /dev/urandom [suggested by
+   TA slides] - `head --bytes=5000000 /dev/urandom > input.txt` hence storing
+   the 5000000 testing bytes in a file called input.txt.
+
+
+==== Point 8 answers Q3 on the lab section - using strace ====
+
+8. Testing the commands using the strace command:
+   
+   strace -c -o strace1.txt ./tr2b '?#' 'ab' < input.txt > outputb.txt
+   strace -c -o strace2.txt ./tr2u '?#' 'ab' < input.txt > outputu.txt
+   strace -c -o strace3.txt ./tr2b '?#' 'ab' < input.txt
+   strace -c -o strace4.txt ./tr2u '?#' 'ab' < input.txt
+
+   The -c option instructs strace to generate a summary of the number and type of each
+   system call it performed. -o instructs strace to copy its output into the file which is
+   passed as the argument to the -o option. We can now find out the number of system calls by
+   inspecting strace1.txt through strace4.txt respectively.
+
+   8.1: The first command checks the system calls made by tr2b, the buffered version,
+   	when the command is made to copy its output to a file. Examining the contents of
+	strace1.txt by running 'nano strace1.txt' gives me the following info: a total of 182
+	system calls were made, of which 77 were write system calls and 79 were read system
+	calls (the rest were of different, misc types).
+   8.2: The second command checks the system calls made by tr2u, the unbuffered version,
+   	when the command is made to copy its output to a file. Examining the contents of
+	strace2.txt, using `nano strace2.txt`, gives me the following info: a total of 
+	10000024 system calls were made! Of which 5000000 were write system calls and 
+	5000002 were read system calls (reading EOF was probably responsible for some of 
+	the extra read calls) (the rest were system calls of diff, misc types). Notice the 
+	obscenely excessive amount of system calls made by the unbuffered program. Its 
+	approximately one read and one write call for every byte being read.
+   8.3: The third command checks the system calls made by tr2b, the buffered version, when 
+   	the command is made to print its output to terminal (instead of writing to file)
+	Examining strace3.txt, using nano strace3.txt, gives me the following info: a total
+	of 19921 system calls were made, if which 19816 were write system calls and 79 were
+	read system calls (the rest were system calls of diff, misc types). Note that, compared
+	to (8.1), this command had the EXACT same number of read calls, but WAY MORE write calls
+	because, evidently, the command used additional I/O write system calls to send its
+	output to terminal.
+   8.4: The fourth command checks the system calls made by tr2u, the unbuffered version, when
+   	the command is made to print its output to terminal (instead of writing to a file).
+	Examing strace4.txt, using nano strace4.txt, gives me the following info: a total of
+	10000024 system calls were made, of which 5000000 were write system calls and 5000002
+	were read system calls. Notice that this is the EXACT SAME as (8.2)! It was quite
+	surprising for me when I saw that, unlike the difference between (8.3) and (8.1),
+	(8.4) had the exact same calls as (8.2), but after thinking about it I realised that
+	8.2 had already executed the maximum number of read/write calls for the given input
+	data. The extra write calls in 8.3 were perhaps an artefact from some optimisation to
+	putchar() when stdout wrote to a file instead of terminal. But here, the unbuffered
+	programs in both 8.4 and 8.2 are already writing each individual character to stdout,
+	it doesn't matter if stdout means "the terminal" or "some other file".
+
+==== Point 9 answers Q4 on the lab section - using time ====
+
+9. Now, I test the programs using the time command.
+   9.1 First, I test tr2b, the buffered version, while copying the output to
+       an output txt file by running the following command:
+       
+       time cat input.txt | ./tr2b '?#' 'ab' > outputb.txt
+       
+       This was the output that command generated:
+       real   0m0.204s
+       user   0m0.083s
+       sys    0m0.096s
+
+   9.2 Now, I compare that by testing tr2u, the unbuffered version, while copying
+       output to an output txt file by running the following command:
+
+       time cat input.txt | ./tr2u '?#' 'ab' > outputu.txt
+
+       This was the output that command generated:
+       real   0m8.438s
+       user   0m1.324s
+       sys    0m7.138s
+
+       Consistent with the results from the strace test, the unbuffered version is
+       significantly slower than the buffered one.
+
+   9.3 Next, I test tr2b, the buffered version, while making it write its output to
+       terminal. 
+
+       time cat input.txt | ./tr2b '?#' 'ab'
+
+       Other than the transliterated output, the time command outputs the
+       following:       
+       real   0m1.278s	
+       user   0m0.314s
+       sys    0m0.176s
+
+   9.4 Now, I test tr2u, the unbuffered version, under the similar condition of
+       making it output to terminal.
+
+       time cat input.txt | ./tr2u '?#' 'ab'
+
+       Other than the transliterated output, the time command outputs the
+       following:
+       real   0m9.548s
+       user   0m1.218s
+       sys    0m8.370s       
+
+       Once again, consistent with strace, unbuffered takes way longer than buffered,
+       but both buffered and unbuffered take slightly longer than their previous, 'write
+       -to-file' counterparts, because writing to terminal involves slightly more I/O 
+       operations.
+
+In conclusion, it is evidently obvious that using buffered I/O in the form of getchar()
+putchar() and any of the other <stdio.h> I/O methods is a lot more efficient than 
+performing repeated system calls yourself with the read() and write() methods.
+
+
+[PS: A quick note, as a sanity check, I also ran the diff -u outputu.txt outputb.txt and ensured
+that that command outputted nothing, to confirm that both tr2u and tr2b had the same effect on
+the input.txt (first 5000000 bytes of /dev/urandom)]

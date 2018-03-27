@@ -1,0 +1,313 @@
+0. export PATH=/usr/local/cs/bin:$PATH (to enable the gcc -std=c11 option)
+1. wrote up a quick C program called 'trivial.c':
+
+#include <math.h>
+#include <stdio.h>
+
+int main(int argc, char* argv[]) {
+  printf("%.17g\n", cos(sqrt(3.0)));
+  return 0;
+}
+
+1.1. Compiled it using GCC:
+   gcc -std=c11 -g trivial.c -o trivial
+
+1.2. Ran it with ./trivial. It produced the following output:
+   -0.16055653857469052
+
+2. ran `ldd ./trivial` to inspect which dynamic libraries my program uses.
+   linux-vdso.so.1 =>  (0x00007ffca21d8000)
+   libc.so.6 => /lib64/libc.so.6 (0x0000003994000000)
+   /lib64/ld-linux-x86-64.so.2 (0x0000003993c00000)
+
+   As the TA slides indicate, all of the .so files are dynamic libraries.
+   VDSO is the Virtual Dynamic Shared Object.
+   libc.so is the C's standard library.
+   ld-linux-x86-64.so.2 is the dynamic linker.
+
+3. ran `strace ./trivial` - it produced the following output:
+execve("./trivial", ["./trivial"], [/* 38 vars */]) = 0
+brk(0)                                  = 0x1e33000
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f55ee0ff000
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+open("/etc/ld.so.cache", O_RDONLY)      = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=156677, ...}) = 0
+mmap(NULL, 156677, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f55ee0d8000
+close(3)                                = 0
+open("/lib64/libc.so.6", O_RDONLY)      = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0000\356\1\2249\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=1930416, ...}) = 0
+mmap(0x3994000000, 3750184, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x3994000000
+mprotect(0x399418a000, 2097152, PROT_NONE) = 0
+mmap(0x399438a000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x18a000) = 0x399438a000
+mmap(0x3994390000, 14632, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x3994390000
+close(3)                                = 0
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f55ee0d7000
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f55ee0d6000
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f55ee0d5000
+arch_prctl(ARCH_SET_FS, 0x7f55ee0d6700) = 0
+mprotect(0x399438a000, 16384, PROT_READ) = 0
+mprotect(0x3993e20000, 4096, PROT_READ) = 0
+munmap(0x7f55ee0d8000, 156677)          = 0
+fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 9), ...}) = 0
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f55ee0fe000
+write(1, "-0.16055653857469052\n", 21-0.16055653857469052
+)  = 21
+exit_group(0)                           = ?
++++ exited with 0 +++
+			     
+The calls that are related to dynamic linking can be summarised by thinking about
+the various system calls that are to do with opening, allocating memory for, mapping,
+protecting and writing. We see an 'access' and an 'open' syscall that opens the files
+related to the dynamic library. fstat allows the linker to examine the size of the file
+and allocate enough memory to hold the contents. After some investigation, I found that
+mmap maps files into memory and mprotect protects regions of memory. close is used to
+close the library calls once all the relevant code has finsihed being linked. write
+probably does the actual process of adding the new code (from the newly allocated
+and protected memory buffer).
+
+
+4. Running the command `ls /usr/bin | awk 'NR%101==505008404%101'` gives me the
+   following list:
+   
+abrt-cli
+bashbug-64
+chsh.20130208
+db2ps
+dtrace
+festival
+gedit
+gnome-screensaver-command
+gst-inspect-0.10
+hp-plugin
+ior-decode-2
+kde-menu
+kstartupconfig
+lpstat
+migspeed
+mysqltest
+opreport
+pango-querymodules-64
+pdftex
+pilot-read-palmpix
+po2xml
+pruneemptydirs
+rawtopgm
+rpmdev-sha512
+sgml2xml
+ssh-keyscan
+texi2dvi
+utmpdump
+xdriinfo
+yum-builddep
+
+5. To invoke LDD on each command, I wrote up the following bash script, inspired by
+   the TA's slides.
+
+#!/bin/bash
+
+for x in "$(ls /usr/bin | awk 'NR%101==505008404%101' $1)";
+do
+    y=`which $x`
+        ldd $y
+done
+
+Following are the commands that resulted in errors along with my explanation.
+(Commands that did not result in an error have been omitted).
+
+The following commands resulted in a "not a dynamic executable" errors - these are
+caused by the executable not resulting in any dynamic linking - ie merely a
+bash script, perl script, etc. These are the "not a dynamic executable" error-generating
+commands:
+
+/usr/bin/bashbug-64
+/usr/bin/db2ps
+/usr/bin/dtrace
+/usr/bin/hp-plugin
+/usr/bin/pruneemptydirs
+/usr/bin/rpmdev-sha512
+/usr/bin/texi2dvi
+/usr/bin/yum-builddep
+
+The following command was the only one that resulted in an error different from
+the "not a dynamic executable" error. The error is described below:
+
+Command: /usr/bin/chsh.20130208:
+Error:	 ldd: error: you do not have read permission for `/usr/bin/chsh.20130208'
+Reason:  I tried to cd /usr/bin and then less chsh.20130208 but it resulted in a
+	 permission denied error. I think the error here is that the ls-awk combination
+	 from the spec generates a command that my user on the lnxsrv doesn't have
+	 read access to.
+
+
+6. To generate a list of all the dynamically linked libraries used by the commands
+   on my ls-awk list, I need to grep all the lines generated by my bash script which
+   contain 'so' (because so indicates a shared object file, ie a dynamically linked lib)
+   , and then, I had to remove duplicates. But to remove duplicate libraries, I had to
+   somehow ignore the addresses from the outputs. To do this I used the SED command and
+   came up with the following command:
+
+   ./ldd_script.sh | grep so | sed 's/(.*//' | sort -u
+
+
+   The above command greps all the lines with so, removes all the addresses from each
+   line, and then sorts them (ignoring any duplicates that remain with the -u option).
+
+
+   That command produces the following output (that I appended to this file by running
+   that command as follows):
+
+   ./ldd_script.sh | grep so | sed 's/(.*//' | sort -u >> lab.txt
+
+	/lib64/ld-linux-x86-64.so.2 
+	libabrt.so.0 => /usr/lib64/libabrt.so.0 
+	libacl.so.1 => /lib64/libacl.so.1 
+	libantlr.so.4 => /usr/lib64/libantlr.so.4 
+	libart_lgpl_2.so.2 => /usr/lib64/libart_lgpl_2.so.2 
+	libasyncns.so.0 => /usr/lib64/libasyncns.so.0 
+	libatk-1.0.so.0 => /usr/lib64/libatk-1.0.so.0 
+	libattr.so.1 => /lib64/libattr.so.1 
+	libaudit.so.1 => /lib64/libaudit.so.1 
+	libaugeas.so.0 => /usr/lib64/libaugeas.so.0 
+	libavahi-client.so.3 => /usr/lib64/libavahi-client.so.3 
+	libavahi-common.so.3 => /usr/lib64/libavahi-common.so.3 
+	libbluetooth.so.3 => /usr/lib64/libbluetooth.so.3 
+	libbz2.so.1 => /lib64/libbz2.so.1 
+	libcairo.so.2 => /usr/lib64/libcairo.so.2 
+	libcap.so.2 => /lib64/libcap.so.2 
+	libcom_err.so.2 => /lib64/libcom_err.so.2 
+	libcrypto.so.10 => /usr/lib64/libcrypto.so.10 
+	libcrypt.so.1 => /lib64/libcrypt.so.1 
+	libc.so.6 => /lib64/libc.so.6 
+	libcups.so.2 => /usr/lib64/libcups.so.2 
+	libdb-4.7.so => /lib64/libdb-4.7.so 
+	libdbus-1.so.3 => /lib64/libdbus-1.so.3 
+	libdbus-glib-1.so.2 => /usr/lib64/libdbus-glib-1.so.2 
+	libDCOP.so.4 => /usr/lib64/libDCOP.so.4 
+	libdl.so.2 => /lib64/libdl.so.2 
+	libdrm.so.2 => /usr/lib64/libdrm.so.2 
+	libdw.so.1 => /usr/lib64/libdw.so.1 
+	libelf.so.1 => /usr/lib64/libelf.so.1 
+	libestbase.so.1.2.96.1 => /usr/lib64/libestbase.so.1.2.96.1 
+	libestools.so.1.2.96.1 => /usr/lib64/libestools.so.1.2.96.1 
+	libeststring.so.1.2 => /usr/lib64/libeststring.so.1.2 
+	libexpat.so.1 => /lib64/libexpat.so.1 
+	libfa.so.1 => /usr/lib64/libfa.so.1 
+	libFestival.so.1.96.0 => /usr/lib64/libFestival.so.1.96.0 
+	libfipscheck.so.1 => /lib64/libfipscheck.so.1 
+	libFLAC.so.8 => /usr/lib64/libFLAC.so.8 
+	libfontconfig.so.1 => /usr/lib64/libfontconfig.so.1 
+	libfreebl3.so => /lib64/libfreebl3.so 
+	libfreetype.so.6 => /usr/lib64/libfreetype.so.6 
+	libgcc_s.so.1 => /lib64/libgcc_s.so.1 
+	libgconf-2.so.4 => /usr/lib64/libgconf-2.so.4 
+	libgcrypt.so.11 => /lib64/libgcrypt.so.11 
+	libgdk_pixbuf-2.0.so.0 => /usr/lib64/libgdk_pixbuf-2.0.so.0 
+	libgdk-x11-2.0.so.0 => /usr/lib64/libgdk-x11-2.0.so.0 
+	libgio-2.0.so.0 => /lib64/libgio-2.0.so.0 
+	libglapi.so.0 => /usr/lib64/libglapi.so.0 
+	libglib-2.0.so.0 => /lib64/libglib-2.0.so.0 
+	libGL.so.1 => /usr/lib64/libGL.so.1 
+	libgmodule-2.0.so.0 => /lib64/libgmodule-2.0.so.0 
+	libgnutls.so.26 => /usr/lib64/libgnutls.so.26 
+	libgobject-2.0.so.0 => /lib64/libgobject-2.0.so.0 
+	libgpg-error.so.0 => /lib64/libgpg-error.so.0 
+	libgssapi_krb5.so.2 => /lib64/libgssapi_krb5.so.2 
+	libgstreamer-0.10.so.0 => /usr/lib64/libgstreamer-0.10.so.0 
+	libgthread-2.0.so.0 => /lib64/libgthread-2.0.so.0 
+	libgtksourceview-2.0.so.0 => /usr/lib64/libgtksourceview-2.0.so.0 
+	libgtk-x11-2.0.so.0 => /usr/lib64/libgtk-x11-2.0.so.0 
+	libICE.so.6 => /usr/lib64/libICE.so.6 
+	libidn.so.11 => /lib64/libidn.so.11 
+	libjpeg.so.62 => /usr/lib64/libjpeg.so.62 
+	libjson-c.so.2 => /lib64/libjson-c.so.2 
+	libk5crypto.so.3 => /lib64/libk5crypto.so.3 
+	libkdecore.so.4 => /usr/lib64/libkdecore.so.4 
+	libkdefakes.so.4 => /usr/lib64/libkdefakes.so.4 
+	libkdefx.so.4 => /usr/lib64/libkdefx.so.4 
+	libkdesu.so.4 => /usr/lib64/libkdesu.so.4 
+	libkdeui.so.4 => /usr/lib64/libkdeui.so.4 
+	libkeyutils.so.1 => /lib64/libkeyutils.so.1 
+	libkio.so.4 => /usr/lib64/libkio.so.4 
+	libkpathsea.so.4 => /usr/lib64/libkpathsea.so.4 
+	libkrb5.so.3 => /lib64/libkrb5.so.3 
+	libkrb5support.so.0 => /lib64/libkrb5support.so.0 
+	libkwalletclient.so.1 => /usr/lib64/libkwalletclient.so.1 
+	liblcms.so.1 => /usr/lib64/liblcms.so.1 
+	liblua-5.1.so => /usr/lib64/liblua-5.1.so 
+	liblzma.so.0 => /usr/lib64/liblzma.so.0 
+	libmng.so.1 => /usr/lib64/libmng.so.1 
+	libm.so.6 => /lib64/libm.so.6 
+	libmysqlclient_r.so.16 => /usr/lib64/mysql/libmysqlclient_r.so.16 
+	libncurses.so.5 => /lib64/libncurses.so.5 
+	libnetpbm.so.10 => /usr/lib64/libnetpbm.so.10 
+	libnsl.so.1 => /lib64/libnsl.so.1 
+	libnspr4.so => /lib64/libnspr4.so 
+	libnss3.so => /usr/lib64/libnss3.so 
+	libnssutil3.so => /usr/lib64/libnssutil3.so 
+	libnuma.so.1 => /usr/lib64/libnuma.so.1 
+	libogg.so.0 => /usr/lib64/libogg.so.0 
+	libopenjpeg.so.2 => /usr/lib64/libopenjpeg.so.2 
+	libORBit-2.so.0 => /usr/lib64/libORBit-2.so.0 
+	libosp.so.5 => /usr/lib64/libosp.so.5 
+	libpango-1.0.so.0 => /usr/lib64/libpango-1.0.so.0 
+	libpangocairo-1.0.so.0 => /usr/lib64/libpangocairo-1.0.so.0 
+	libpangoft2-1.0.so.0 => /usr/lib64/libpangoft2-1.0.so.0 
+	libpangox-1.0.so.0 => /usr/lib64/libpangox-1.0.so.0 
+	libpangoxft-1.0.so.0 => /usr/lib64/libpangoxft-1.0.so.0 
+	libpisock.so.9 => /usr/lib64/libpisock.so.9 
+	libpixman-1.so.0 => /usr/lib64/libpixman-1.so.0 
+	libplc4.so => /lib64/libplc4.so 
+	libplds4.so => /lib64/libplds4.so 
+	libpng12.so.0 => /usr/lib64/libpng12.so.0 
+	libpoppler.so.5 => /usr/lib64/libpoppler.so.5 
+	libpopt.so.0 => /lib64/libpopt.so.0 
+	libpthread.so.0 => /lib64/libpthread.so.0 
+	libpulsecommon-0.9.21.so => /usr/lib64/libpulsecommon-0.9.21.so 
+	libpulse-simple.so.0 => /usr/lib64/libpulse-simple.so.0 
+	libpulse.so.0 => /usr/lib64/libpulse.so.0 
+	libQtCore.so.4 => /usr/lib64/libQtCore.so.4 
+	libqt-mt.so.3 => /usr/lib64/qt-3.3/lib/libqt-mt.so.3 
+	libQtXml.so.4 => /usr/lib64/libQtXml.so.4 
+	libreport.so.0 => /usr/lib64/libreport.so.0 
+	libresolv.so.2 => /lib64/libresolv.so.2 
+	librpmio.so.1 => /usr/lib64/librpmio.so.1 
+	librpm.so.1 => /usr/lib64/librpm.so.1 
+	librt.so.1 => /lib64/librt.so.1 
+	libsatyr.so.3 => /usr/lib64/libsatyr.so.3 
+	libselinux.so.1 => /lib64/libselinux.so.1 
+	libSM.so.6 => /usr/lib64/libSM.so.6 
+	libsndfile.so.1 => /usr/lib64/libsndfile.so.1 
+	libssl.so.10 => /usr/lib64/libssl.so.10 
+	libstdc++.so.6 => /usr/lib64/libstdc++.so.6 
+	libtar.so.1 => /usr/lib64/libtar.so.1 
+	libtasn1.so.3 => /usr/lib64/libtasn1.so.3 
+	libtinfo.so.5 => /lib64/libtinfo.so.5 
+	libusb-0.1.so.4 => /usr/lib64/libusb-0.1.so.4 
+	libutempter.so.0 => /usr/lib64/libutempter.so.0 
+	libutil.so.1 => /lib64/libutil.so.1 
+	libuuid.so.1 => /lib64/libuuid.so.1 
+	libvorbisenc.so.2 => /usr/lib64/libvorbisenc.so.2 
+	libvorbis.so.0 => /usr/lib64/libvorbis.so.0 
+	libwrap.so.0 => /lib64/libwrap.so.0 
+	libX11.so.6 => /usr/lib64/libX11.so.6 
+	libX11-xcb.so.1 => /usr/lib64/libX11-xcb.so.1 
+	libXau.so.6 => /usr/lib64/libXau.so.6 
+	libxcb-dri2.so.0 => /usr/lib64/libxcb-dri2.so.0 
+	libxcb-glx.so.0 => /usr/lib64/libxcb-glx.so.0 
+	libxcb.so.1 => /usr/lib64/libxcb.so.1 
+	libXcomposite.so.1 => /usr/lib64/libXcomposite.so.1 
+	libXcursor.so.1 => /usr/lib64/libXcursor.so.1 
+	libXdamage.so.1 => /usr/lib64/libXdamage.so.1 
+	libXext.so.6 => /usr/lib64/libXext.so.6 
+	libXfixes.so.3 => /usr/lib64/libXfixes.so.3 
+	libXft.so.2 => /usr/lib64/libXft.so.2 
+	libXinerama.so.1 => /usr/lib64/libXinerama.so.1 
+	libXi.so.6 => /usr/lib64/libXi.so.6 
+	libxml2.so.2 => /usr/lib64/libxml2.so.2 
+	libXrandr.so.2 => /usr/lib64/libXrandr.so.2 
+	libXrender.so.1 => /usr/lib64/libXrender.so.1 
+	libXtst.so.6 => /usr/lib64/libXtst.so.6 
+	libXxf86vm.so.1 => /usr/lib64/libXxf86vm.so.1 
+	libz.so.1 => /lib64/libz.so.1 
+	linux-vdso.so.1 =>  

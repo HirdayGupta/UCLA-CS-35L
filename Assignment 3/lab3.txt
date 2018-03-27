@@ -1,0 +1,78 @@
+1. First, I used wget to get `Coreutils 7.6` from
+   ftp://ftp.gnu.org/gnu/coreutils/coreutils-7.6.tar.gz
+2. Next, I used `tar -xzvf` to uncompress the coreutils into a custom folder.
+   2.1  After reading the INSTALL file in coreutils, I ran the ./configure 
+   	command with the --prefix flag "/u/cs/ugrad/hirday/coreutilsInstall"
+	(to install in a custom directory). Followed this by `make` and
+	`make install` to compile and install.
+3. (Did not need to use locale-gen as mentioned in the spec) Managed to
+   reproduce the bug by cd-ing into "~/coreutilsInstall" (where I installed the
+   coreutils package) and running "./bin/ls -l"
+4. Used emacs to create the patch file (from
+   https://www.mail-archive.com/bug-coreutils@gnu.org/msg17927.html)
+   and then ran the command "patch -p1 <patchFile". (p1 helped me get rid of the
+   "a/" and "b/" from the patch file).
+5. Used make to compile the newly patched file. Make seemed to run a command
+   called "make-all-recursive" which essentially traverses recursively through
+   each of the sub-directories and compiles any changed files. Between all the
+   "entering directory" and "leaving directory" log outputs, it was evident that
+   it used the CC variable to compile ls.o in the src directory (which was one
+   of the changed files, and hence, necessary.) It also seems to update the man
+   pages for ls.1. It also seems to make some changes to files by the name of
+   "dir" and "vdir" - which I'm not sure are necessary.
+   Here is the output from make to cross-verify my observations from above.
+   make  all-recursive
+   make[1]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6'
+   Making all in lib
+   make[2]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6/lib'
+   make  all-recursive
+   make[3]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6/lib'
+   make[4]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6/lib'
+   make[4]: Leaving directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6/lib'
+   make[3]: Leaving directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6/lib'
+   Making all in src
+   make[2]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6/src'
+   make  all-am
+   make[3]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+   /coreutils-7.6/src'
+   	    CC     ls.o
+  	    CCLD   dir
+  	    CCLD   vdir
+  	    CCLD   ls
+    make[3]: Leaving directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+    /coreutils-7.6/src'
+    make[2]: Leaving directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+    /coreutils-7.6/src'
+    Making all in doc
+    make[2]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+    /coreutils-7.6/doc'
+    make[2]: Nothing to be done for `all'.
+    make[2]: Leaving directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+    /coreutils-7.6/doc'
+    Making all in man
+    make[2]: Entering directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+    /coreutils-7.6/man'
+    	     GEN    dir.1
+  	     GEN    vdir.1
+  	     GEN    ls.1
+    make[2]: Leaving directory `/w/home.19/cs/ugrad/hirday/CS35L/assign3
+    /coreutils-7.6/man'
+
+    [Remaining output blurb omitted for space]
+
+6. Tested by using the touch command (touch -m [file], touch -m -d [file])
+   [before patch] -rw-r--r-- 1 hirday csugrad    0 2018-02-03 20:09 newFile
+   [after patch] -rw-r--r-- 1 hirday csugrad 0 Feb  3 20:01 newFile
+   [before patch] -rw-r--r-- 1 hirday csugrad    0 2017-02-02 00:00 oldFile
+   [after patch] -rw-r--r-- 1 hirday csugrad 0 Feb  2  2017 oldFile
+
+   Running just make (and not make install) allowed me to run the modified
+   version from the source directory and the installed version from the
+   installed directory and compare outputs.

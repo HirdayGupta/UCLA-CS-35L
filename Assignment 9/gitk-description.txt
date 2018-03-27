@@ -1,0 +1,17 @@
+Top Row Window:
+
+    - Left Hand Side: A list of all commits along with branching shown graphically on the
+          	      left.
+
+    - Middle: 	      A list of the authors (along with email addresses), of the correspo
+      		      -nding commits.
+
+    - Right:   	      The dates of each commit's merge into the master.
+
+
+Bottom Row Window:
+
+A navigator to jump through the different commits in the master. A tool to go to the
+next and previous commit. A search tool for commits. A window that shows the diff +
+ChangeLog entry (in the format-patch style) and another window that allows you to select
+which file's diff we want to see the first window.

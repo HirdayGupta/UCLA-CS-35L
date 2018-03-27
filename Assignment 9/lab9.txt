@@ -1,0 +1,270 @@
+1. Ran git clone https://git.savannah.gnu.org/git/diffutils.git to clone gnu
+   diffutils from its main Savannah repo.
+
+2. cd into the newly created diffutils folder. Then run git log > ../git-log.txt
+   (placed git-log.txt in parent folder so as not to clutter the diffutils repo.
+
+3. Ran `git tag > ../git-tags.txt` to generate tags and store in file. Again, placed 
+   git-tag.txt in the parent folder for same reason as above.
+
+4. To find a specific commit, I used the --grep option in the git log command.
+   I ran the following command to find the required commit:
+   ` git log --grep="maint: quote" `
+
+   The above command have the following output:
+
+   commit 62ca21c8c1a5aa3488589dcb191a4ef04ae9ed4f
+   Author: Paul Eggert <eggert@cs.ucla.edu>
+   Date:   Wed Jan 25 23:46:16 2012 -0800
+
+   	maint: quote 'like this' or "like this", not `like this'
+    
+	This is in response to a recent change in the GNU coding standards,
+	which now suggest quoting 'like this' or "like this", instead of
+    	`like this' or ``like this''.
+    	* HACKING, NEWS, README, README-hacking, TODO, doc/diagmeet.note:
+    	* doc/diffutils.texi, ms/config.bat, ms/config.site:
+    	* src/analyze.c, src/cmp.c, src/context.c, src/diff.c:
+    	* src/diff.h, src/diff3.c, src/dir.c, src/ifdef.c, src/io.c:
+    	* src/sdiff.c, src/side.c, src/system.h, src/util.c:
+    	* tests/help-version:
+    	Quote 'like this' or "like this" in commentary.
+    	* cfg.mk (old_NEWS_hash): Adjust to reflect new NEWS quoting.
+    	* man/help2man: Update to 1.40.4 version, with quoting fixed as above.
+    	* po/en.po: Remove translation involving `, as it's no longer needed.
+    	* src/cmp.c (try_help, specify_ignore_initial, usage, main):
+    	* src/diff.c (main, try_help, option_help_msgid, specify_value)
+    	(compare_files):
+    	* src/diff3.c (main, try_help, option_help_msgid, usage)
+    	(read_diff):
+    	* src/dir.c (compare_names):
+    	* src/sdiff.c (try_help, usage, check_child_status, main):
+    	* src/util.c (finish_output):
+    	* tests/help-version:
+    	Quote 'like this' in output.
+
+    
+    Using the commit id from above, I try and locate the diff associated with 
+    that commit. Scouring through the man pages leads me to the `git show`
+    command - which prints the changelog info, and the entire diff associated
+    with that commit. Now, I run the following command to generate the required patch file.
+
+    `git show 62ca21c8c1a5aa3488589dcb191a4ef04ae9ed4f > quote-patch.txt`
+
+    I discovered that I could also use the
+    `git format-patch 62ca21c8c1a5aa3488589dcb191a4ef04ae9ed4f` command with
+    the --stdout option to print out a similar patchfile - but the important bit
+    - the diff - is very similar.
+
+5. To checkout v3.0, I run the command:
+
+   `git checkout v3.0` 
+
+
+6. Run the command patch -p1 <quote-patch.txt to apply the patch from that commit to v3.0.
+   Ran into a few patch errors along the way where we had to press RETURN to skip some
+   files that patch couldn't find. The files that Patch couldn't find were: HACKING,
+   diffutils.texi, & help2man. Other than these, a few random Hunks seemed to have
+   failed here and there.
+
+7. git status gives the following output:
+
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   NEWS
+#	modified:   README
+#	modified:   TODO
+#	modified:   doc/diagmeet.note
+#	modified:   ms/config.bat
+#	modified:   ms/config.site
+#	modified:   po/en.po
+#	modified:   src/analyze.c
+#	modified:   src/cmp.c
+#	modified:   src/context.c
+#	modified:   src/diff.c
+#	modified:   src/diff.h
+#	modified:   src/diff3.c
+#	modified:   src/dir.c
+#	modified:   src/ifdef.c
+#	modified:   src/io.c
+#	modified:   src/sdiff.c
+#	modified:   src/side.c
+#	modified:   src/system.h
+#	modified:   src/util.c
+#	modified:   tests/help-version
+
+[Untracked files warning eliminated for conciseness]
+
+8. Looked up all of the specified commands and learnt how to use them.
+
+9. First, opened all the files from that git status report that do not
+   have a .c extension and executed the vc-revert (C-x v u followed by yes)
+   The files that I so changed were:
+   [NEWS, README, TODO, doc/diagmeet.note, ms/config.bat, ms/config.site,
+   po/en.po, diff.h, system.h, tests/help-version]
+
+   Next, for the files with a .c extension, Here's a summary of what I did on
+   each file:
+
+   emacs src/*.c: (all c files changed according to git status)
+       - C-x v = to open *vc-diff* buffer
+       - C-c C-c to each hunk, to get a better idea of exactly what the change was
+       - switch back to the *vc-diff* buffer using C-x 5 b, 
+       - and then C-u C-c C-a (revert hunk) all the changes - basically changing
+       	 documentation back to using grave accents - to make it a light change but
+	 making sure to never change a character string constant.
+       - (After some steps I stopped doing the C-c C-c and then switch back into the
+       	 the *vc-diff* buffer as i started to get more confident)
+       	
+
+10. Next I `ls src/*.c.rej` to find all the files that were rejected by the patch.
+    Found src/diff3.c.rej and src/diff.c.rej. Now, I emacs into each of these rejected
+    files and manually make each of the changes to the diff.c and diff3.c files (using
+    emacs, M-g-g to go to the line nos. & C-x s to look for some of the words from the
+    rejection files that would help me find the location where I needed to manually make
+    the change).
+
+11. Run `git clean -f` to remove the untracked files.
+
+12. Run `git status` to check if there "half a dozen" modified files now. This is what
+    git status outputs now:
+
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/cmp.c
+#	modified:   src/diff.c
+#	modified:   src/diff3.c
+#	modified:   src/dir.c
+#	modified:   src/sdiff.c
+#	modified:   src/util.c
+
+   Now, I run `git diff > quote-3.0-patch.txt` to generate a diff file.
+
+    wc -l quote-3.0-patch.txt confirms that the patch is 326 lines long,
+    which seems correct as per the spec.
+
+13. Now, first I export PATH=/usr/local/cs/bin:$PATH, then I follow the instructions
+    in README-hacking which have me executing the following commands:
+
+    ./bootstrap
+    ./configure
+    make
+    make check
+
+    Now, if i run `diff . -` and `diff --help` I can see that it is only outputting
+    '' not ``.
+
+    This is the output from diff . -
+    diff: cannot compare '-' to a directory
+
+    This is the output from diff --help
+Usage: diff [OPTION]... FILES
+Compare FILES line by line.
+
+Mandatory arguments to long options are mandatory for short options too.
+      --normal                  output a normal diff (the default)
+  -q, --brief                   report only when files differ
+  -s, --report-identical-files  report when two files are the same
+  -c, -C NUM, --context[=NUM]   output NUM (default 3) lines of copied context
+  -u, -U NUM, --unified[=NUM]   output NUM (default 3) lines of unified context
+  -e, --ed                      output an ed script
+  -n, --rcs                     output an RCS format diff
+  -y, --side-by-side            output in two columns
+  -W, --width=NUM               output at most NUM (default 130) print columns
+      --left-column             output only the left column of common lines
+      --suppress-common-lines   do not output common lines
+
+  -p, --show-c-function         show which C function each change is in
+  -F, --show-function-line=RE   show the most recent line matching RE
+      --label LABEL             use LABEL instead of file name
+                                  (can be repeated)
+
+  -t, --expand-tabs             expand tabs to spaces in output
+  -T, --initial-tab             make tabs line up by prepending a tab
+      --tabsize=NUM             tab stops every NUM (default 8) print columns
+      --suppress-blank-empty    suppress space or tab before empty output lines
+  -l, --paginate                pass output through 'pr' to paginate it
+
+  -r, --recursive                 recursively compare any subdirectories found
+      --no-dereference            don't follow symbolic links
+  -N, --new-file                  treat absent files as empty
+      --unidirectional-new-file   treat absent first files as empty
+      --ignore-file-name-case     ignore case when comparing file names
+      --no-ignore-file-name-case  consider case when comparing file names
+  -x, --exclude=PAT               exclude files that match PAT
+  -X, --exclude-from=FILE         exclude files that match any pattern in FILE
+  -S, --starting-file=FILE        start with FILE when comparing directories
+      --from-file=FILE1           compare FILE1 to all operands;
+                                    FILE1 can be a directory
+      --to-file=FILE2             compare all operands to FILE2;
+                                    FILE2 can be a directory
+
+  -i, --ignore-case               ignore case differences in file contents
+  -E, --ignore-tab-expansion      ignore changes due to tab expansion
+  -Z, --ignore-trailing-space     ignore white space at line end
+  -b, --ignore-space-change       ignore changes in the amount of white space
+  -w, --ignore-all-space          ignore all white space
+  -B, --ignore-blank-lines        ignore changes where lines are all blank
+  -I, --ignore-matching-lines=RE  ignore changes where all lines match RE
+
+  -a, --text                      treat all files as text
+      --strip-trailing-cr         strip trailing carriage return on input
+
+  -D, --ifdef=NAME                output merged file with '#ifdef NAME' diffs
+      --GTYPE-group-format=GFMT   format GTYPE input groups with GFMT
+      --line-format=LFMT          format all input lines with LFMT
+      --LTYPE-line-format=LFMT    format LTYPE input lines with LFMT
+    These format options provide fine-grained control over the output
+      of diff, generalizing -D/--ifdef.
+    LTYPE is 'old', 'new', or 'unchanged'.  GTYPE is LTYPE or 'changed'.
+    GFMT (only) may contain:
+      %<  lines from FILE1
+      %>  lines from FILE2
+      %=  lines common to FILE1 and FILE2
+      %[-][WIDTH][.[PREC]]{doxX}LETTER  printf-style spec for LETTER
+        LETTERs are as follows for new group, lower case for old group:
+          F  first line number
+          L  last line number
+          N  number of lines = L-F+1
+          E  F-1
+          M  L+1
+      %(A=B?T:E)  if A equals B then T else E
+    LFMT (only) may contain:
+      %L  contents of line
+      %l  contents of line, excluding any trailing newline
+      %[-][WIDTH][.[PREC]]{doxX}n  printf-style spec for input line number
+    Both GFMT and LFMT may contain:
+      %%  %
+      %c'C'  the single character C
+      %c'\OOO'  the character with octal code OOO
+      C    the character C (other characters represent themselves)
+
+  -d, --minimal            try hard to find a smaller set of changes
+      --horizon-lines=NUM  keep NUM lines of the common prefix and suffix
+      --speed-large-files  assume large files and many scattered small changes
+
+      --help               display this help and exit
+  -v, --version            output version information and exit
+
+FILES are 'FILE1 FILE2' or 'DIR1 DIR2' or 'DIR FILE...' or 'FILE... DIR'.
+If --from-file or --to-file is given, there are no restrictions on FILE(s).
+If a FILE is '-', read standard input.
+Exit status is 0 if inputs are the same, 1 if different, 2 if trouble.
+
+Report bugs to: bug-diffutils@gnu.org
+GNU diffutils home page: <http://www.gnu.org/software/diffutils/>
+General help using GNU software: <http://www.gnu.org/gethelp/>
+    
+
+14. I reclone the repo into a new director called diffutils-3.0,
+    checkout v3.0. I cp -R the  directory I made all the mods in to
+    a new dir called diffutils-3.0-patch.
+
+    now, running the given diff command to generate the test output, and
+    then running diff on that test output and my quote-3.0-patch shows me
+    that while there are differences, the patch was a success.
+    

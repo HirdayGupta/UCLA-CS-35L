@@ -1,0 +1,115 @@
+1. man -k
+
+2. cp:  /usr/local/cs/coreutils-8.29/bin/cp
+   wc:  /usr/local/cs/coreutils-8.29/bin/wc
+   
+   Shell Commands Used:
+   which cp (led me to /usr/local/cs/bin/cp)
+   ls -l cp (led me to the /usr/local/cs/coreutils-8.29/bin/cp)
+   (same with wc)
+
+3. ./X , ./w & ./[
+
+   Shell Commands Used:
+   cd /usr/bin (Since this is where the source files for executables are)
+   find -executable -name "?"
+
+4. /usr/bin/emacs-24.3 is actually executed.
+
+   Shell Commands Used:
+   ls -l /usr/bin/emacs
+   ls -l /etc/alternatives/emacs
+   ls -l /usr/bin/emacs-24.3
+
+5. g+s: When any user in the current user's group executes the file being modified
+   	the file's ownership Group ID changes to that of the user's group ID.
+        This essentially allows users in the current user's group to execute the
+	file with owner permission.
+   o-x: This symbolic mode changes the file's permissions such that users which 
+        are not in the file's group can not execute the file.
+
+   Shell Commands Used:
+   man chmod
+
+6. find -mtime -21 (Used -21 because question asked for "in the last three weeks"
+   as opposed to "exactly three weeks ago"). 
+
+7. Following are the files (in my default directory) that were edited in the last
+   three weeks.
+  ./Desktop
+  ./Desktop/$RECYCLE.BIN
+  ./Documents
+  ./Documents/$RECYCLE.BIN
+  ./Downloads
+  ./Downloads/$RECYCLE.BIN
+  ./.cache/abrt
+  ./.emacs.d
+  ./.emacs.d/auto-save-list
+  ./CS35L
+   
+   Shell Commands Used:
+   find -type d -mtime -21
+
+8. 270
+
+  Shell Commands Used:
+  cd /usr/bin
+  find -type l > ~/foo.txt
+  cat ~/foo.txt -n (got answer from line numbers)
+
+9. libgpg-error.so.0.10.0 is the oldest regular file.
+
+   Shell Commands Used:
+   cd /usr/lib
+   ls -l -t -a -r (-l long lists, -t sorts by modtime, -r lists in reverse
+   (so oldest first) and -a includes all files (even those starting with '.')
+   (Confirmed that the answer was a regular file by the '-' in the 'file type'
+   region of the descriptive string in ls long listing format)
+
+10. From the locale man pages, it is clear that locale gets its data from some
+    environment variables. Visiting 'man 7 locale' (locale(7)) seems to suggest
+    that LOCPATH is the environment variable that stores the paths to compiled
+    local data files. '/usr/lib/locale' is the default path for individual
+    compiled locale files.
+
+11. Buffer-menu-sort, sort-columns, sort-fields, sort-lines, sort-numeric-fields,
+    sort-pages, sort-paragraphs, sort-regexp-fields, 
+    tabulated-list-col-sort, tabulated-list-sort
+    Emacs Command Used: C-h a sort
+
+12. C-M-a           beginning-of-defun: move backward to the beginning of defun
+    C-M-b           backward-sexp: move backward across one balanced expression
+    C-M-c           exit-recursive-edit: exit from the innermost recursive edit
+    C-M-d           down-list: move forward down one level of parenthesis
+    C-M-e           end-of-defun: move forward to next end of defun
+    C-M-f           forward-sexp: mpve forward across one balanced expression
+    C-M-g	    (No such command)
+    C-M-h           mark-defun: put mark at end of this defun and point at
+    		    beginning
+
+    Emacs Commands Used:
+    C-h b (searched all key bindings for C-M-a through C-M-h and noted function
+    names)
+    C-h a FUNCTION_NAME (searched all the function names I found from above for 
+    brief description of what they do)
+
+13. C-g is the keyboard-quit command. It quits any partially typed command,
+    one that is currently running or removes an unwanted numerical argument.
+    C-g works by setting the 'quit-flag' variable to 't' the instant C-g is
+    typed. Emacs lisp checks this variable frequently, and quits if it is
+    'non-nil'. 
+    Emacs Command Used:
+    C-h F keyboard-quit
+
+14. “Yanking” means reinserting text previously killed.  The usual way to
+    move or copy text is to kill it and then yank it elsewhere. `C-y`, the
+    yank command, Yanks the last kill into the buffer, at the current cursor
+    position.
+
+15. The only difference between the outpur of the ls -l command and the emacs
+    dired command is that the emacs dired command's first line says
+    "total used in directory 328740 available 13034240" and the ls -l command's
+    first line says "total 328660". Hence, the dired command also prints the
+    available space whereas the dired command does not.
+    Emacs Commands Used: C-x d /usr/bin
+    Shell commands used: ls -l /usr/bin

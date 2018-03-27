@@ -1,0 +1,57 @@
+1. export PATH=/usr/local/cs/bin:$PATH - to make sure that the correct version
+   `sort` is being used.
+
+2. man od - to investigate the feature of the od command. After investigating
+   options and reading TA's slides, I formulate the following od command to 
+   store 10MB of random single-precision floating point numbers, in textual form
+   one per line with no whitespace, in a file called random.txt
+
+   od -An -f -N 40MB < /dev/urandom | tr -s ' ' '\n' > random.txt
+
+   2.1 Note, that to generate 10M lines, I had to tell od to listen for 40 MB
+       because a float is 4 bytes large.
+   2.2 Last thing to do to random.txt, is to remove the leading newline from
+       the top of the file. I do this using nano.
+   2.3 Now, random.txt contains the unsorted input and is ready to be used to test
+       the sort command.
+
+3. Now, I ran the following time commands (with 1, 2, 4 & 8 for sort's parallel)
+   The following data is in the format [command] followed by [output].
+   
+[command]:	time -p sort -g random.txt > /dev/null
+[output]:	real 24.07
+		user 114.24
+		sys 0.34
+
+[command]:	time -p sort -g --parallel=1 random.txt > /dev/null
+[output]:    	real 96.69
+		user 96.55
+		sys 0.17
+
+[command]:	time -p sort -g --parallel=2 random.txt > /dev/null
+[output]:   	real 53.44
+		user 100.82
+		sys 0.21
+`
+[command]:	time -p sort -g --parallel=4 random.txt > /dev/null
+[output]:	real 33.48
+		user 106.30
+		sys 0.26
+
+[command]:	time -p sort -g --parallel=8 random.txt > /dev/null
+[output]:	real 19.99
+		user 104.31
+		sys 0.37
+
+
+A few observations from the above data:
+
+1. sort seems to, by default, use the parallel=8 option when no parallel option is
+   specified. 
+
+2. As is clearly visible, as the no. of parallel operations increase, the real,
+   "wall-clock" time decreases significantly.
+
+3. Also, the user time is exceeding real time, because "user time" measures the total
+   amount of time the CPU spends in user time, ACROSS ALL CPUs. Since, I'm multi-
+   threading here, the time gets spent across multiple CPUs.

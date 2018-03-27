@@ -1,0 +1,22 @@
+2018-02-12  Hirday Manish Gupta  <hirday@lnxsrv03.seas.ucla.edu>
+
+	* timespec.h: (timespec_cmp):
+	Remove integer subtraction from program logic to prevent overflow
+	errors. Replace subtraction with direct comparison and only if the
+	seconds are equal, then invoke a subtraction of nanoseconds as a
+	tiebreaker (this subtraction is now guaranteed to not overflow as
+	it is a maximum of 8 digits long).
+
+--- lib/timespec.h	2005-09-21 23:05:39.000000000 -0700
++++ lib/timespec.h	2018-02-12 16:26:04.507619000 -0800
+@@ -45,8 +45,8 @@
+ static inline int
+ timespec_cmp (struct timespec a, struct timespec b)
+ {
+-  int diff = a.tv_sec - b.tv_sec;
+-  return diff ? diff : a.tv_nsec - b.tv_nsec;
++  return a.tv_sec > b.tv_sec ? 1 : a.tv_sec < b.tv_sec ? -1 :
++  a.tv_nsec - b.tv_nsec;
+ }
+ 
+ # if ! HAVE_DECL_NANOSLEEP

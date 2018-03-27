@@ -1,0 +1,34 @@
+1. Assuming we were sending data using ssh, and the other teams had been
+   carefully observing each byte, the network WOULD STILL be secure.
+   This is the beauty of asymmetric key encryption. The message would be
+   encrypted by the receiver's public key (readily available to the observer),
+   but can only be fully decrypted by the private key on the receiver, which is
+   not available on the network. After this step, the data is once again encrypted
+   by a symmetric encrytion key (aka Session Key), agreed on by the client and
+   server, depending on the public-private key pair. The malicious party, is unable
+   to decrypt without the private key and hence cannot make any sense of the data
+   flowing on the network.
+
+   However, if the malicious party had access to our keystrokes, the network would
+   be rendered insecure. This is because they would then have access to the passphrase
+   to the private key (enabling them to log in to our host!),
+   and hence would be able to decrypt all data flowing over the network.
+   Not only this, they can also figure out the decryption key by comparing
+   keytaps against the encrypted bytes they observe on the network.
+
+   Lastly, if the attackers had access to the USB, then the network would definitely
+   NOT be secure, because they would have access to the .ssh folder in the root, giving
+   them access to the public and private key pair and hence, the ability to decrypt all
+   messages flowing across the network.
+
+2. gpg --verify is unable to verify the ownership of data. It simply compares decrypted
+   signature (which it decrypts using a public key) to decrypted data. It is easy to intercept
+   the transmission, change the data, generate a signature using a new public key, and send
+   this new public key along with the new signature. gpg --verify will merely use that new
+   public key to decrypt the new signature which matches the tampered data - resulting in a
+   successful verification despite the data being altered.
+
+   The only successful solution to this problem is the existence of a trusted third party
+   to perform the transmission that maintains a record of the original file and its Author
+   (possibly through a certificate). Hence, if the certificate has been tampered with at time
+   of receiving, we know data has been changed.

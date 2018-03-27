@@ -1,0 +1,83 @@
+Lab Notes for the Laboratory Section of Assignment 2
+
+1. export LC_ALL='C'
+
+2. sort -d /usr/share/dict/words > words 
+   (-d option sorts the input lexicographically line by line)
+
+3. wget http://web.cs.ucla.edu/classes/winter18/cs35L/assign/assign2.html
+   3.1 cat assign2.html | tr -c 'A-Za-z' > output.txt - on examining output2.txt
+       it is evident that the command is replacing all characters in the
+       complement of SET1 with the characters in SET2.
+   3.2 tr -cs 'A-Za-z' '[\n*]' - this command replaces sequences of characters 
+       in the complement of SET1 with the characters in SET2. So essentially,
+       all sequences of characters not in SET1 are replaced by a single new-line
+   3.3 tr -cs 'A-Za-z' '[\n*]' | sort - this command takes the same output as
+       the command above and simply sorts it alphabetically.
+   3.4 tr -cs 'A-Za-z' '[\n*]' | sort -u - this command does almost the same
+       thing as the above, excpet the -u option omits duplicates from the output
+   3.5 tr -cs 'A-Za-z' '[\n*]' | sort -u | comm - words: this command pipes the
+       output from the sort command to as FILE1 to comm, and it prints out the
+       words unique to FILE1 in Column1, words unique to FILE2 in Column2 and
+       words that appear in both files in Column3.
+   3.6 tr -cs 'A-Za-z' '[\n*]' | sort -u | comm -23 - words: this command only
+       prints out words that are unique to file 1. So essentially, it prints out
+       words in assign2.html that are not in the English dictionary. (A crude
+       spellchecker)
+
+4. wget http://mauimapp.com/moolelo/hwnwdseng.htm to get the htm file.
+
+5. While writing the buildwords script, the first thing I thought about was the
+   desired interface - namely being able to read from Standard input. After
+   consulting my TA, the best way to do this was using the 'cat $1' command
+   which would make the standard input available to be piped to further commands
+   in my script.
+   5.1 Next, I used grep to isolate all the '<td>...</td>' tags.
+   5.2 Using awk, I chose the even-numbered '<td>'s since they were hawaiian.
+   5.3 I then used tr to convert upper case to lower case.
+   5.4 Then, using sed, I removed all HTML tags using the regex `<\/*[a-zA-Z]*>`
+   5.5 Then, again with sed, I replaced all backticks(`) with apostrophes(')
+   5.6 Removed the indentation by removing 2 or more consecutive space character
+   5.7 USING APPROACH 2 FROM THE ASSIGNMENT 2 CLARIFICATION, I split words with
+       spaces and OPTIONAL commas (so space and/or comma). 'mele, oli' became
+       'mele' and 'oli'.
+   5.8 Next, I used the '/d' option on sed to delete all lines that had chars
+       other than those allowed by hawaiian.
+   5.9 I then squeezed newlines using tr to make sure there was just one newline
+       character seperating each word and FINALLY, I used sort -u to sort the
+       list alphabetically.
+
+6. This is my buildwords script:
+   #! /bin/sh
+ 
+   cat $1 |
+   grep -E '<td>.+</td>' |
+   awk 'NR % 2 == 0' |
+   tr [:upper:] [:lower:] |
+   sed 's/<\/*[a-zA-Z]*>//g' |
+   sed 's/`/'\''/g' |
+   sed 's/ \{2,\}//' |
+   sed 's/,* /\n/g' |
+   sed '/[^pk'\''mnwlhaeiou]/d' |
+   tr -s '\n' |
+   sort -u
+
+7. To spell check the web page against hwords, I ran the following command
+  tr -cs 'A-Za-z' '[\n*]' | tr [:upper:] [:lower:] | sort -u | comm -23 - hwords
+  
+8. Number of "misspelled" English words: 38 (Command was same as above, except
+   with words instead hwords and output piped to wc -l to count lines)
+   
+   Number of "misspelled" hawaiian words: 406 (Again, same as above, but with
+   hwords)
+
+9. There are lots of words that are misspelled as Hawaiian and not as English
+   For example: utilities, typed, where, etc. 
+   
+   There are only 3 words that are misspelled in English but not in Hawaiian:
+   halau, lau and wiki.
+
+   I found out by saving the misspelled English and Hawaiian words to separate
+   files and then running the comm command (suprressing either the 1st or 2nd
+   column depending on which of the above info I wanted).
+

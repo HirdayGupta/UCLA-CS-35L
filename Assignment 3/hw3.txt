@@ -1,0 +1,24 @@
+Q1. Brady's patched removed the line merely to clean up the code.
+    The line served as a go-to marker, and in his patch, he removed the only
+    line that referred to it. Hence, he removed that line too. The patch would
+    still work if he hadn't removed it, so it wasn't absolutely necessary,
+    but if he had left it in, then other programmers would have to remember
+    that they cannot reuse that phrase "case_long_iso_time_style:" as a go-to
+    marker elsewhere. Hence, it was essential he remove it to clean up the code. 
+
+Q2. Since this version of ls displays the date only in english, it may cause a
+    problem in non-english speaking countries. And if the locale settings set
+    the language to other than english, then intersting problems such as incor
+    -rect date displaying may arise.
+
+Q3. An IndexError is raised. This is because python's random.choice function 
+    expects a non-empty collection, and when it is given an empty one, the
+    docs say it will raise the IndexError. Since /dev/null is an empty file,
+    the function is given an empty collection and hence the error is raised.
+    Lastly, the reason the function random.choice is called on an empty file
+    in the first place, is because the default value for numlines is 1.
+
+Q4. When the script is run on python3, a compile time error is thrown. This is
+    because python3 no longer supports "automatic tuple unpacking." Hence,
+    line 65 needs to be re-written as "except IOError as err" and then err can
+    be checked for errno or strerror.
